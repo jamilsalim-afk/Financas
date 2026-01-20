@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FamíliaFinanças - Cloud Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .sync-active { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- Header -->
+    <header class="bg-indigo-700 text-white p-6 rounded-b-[2.5rem] shadow-2xl mb-6 relative overflow-hidden">
+        <div class="relative z-10">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold">Resumo Familiar 🏠</h1>
+                    <p id="currentMonthDisplay" class="text-indigo-100 text-sm opacity-90"></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <!-- Status de Sincronização -->
+                    <div id="syncStatus" class="bg-white/20 p-2 rounded-xl backdrop-blur-md cursor-pointer" onclick="switchTab('settings')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-2 gap-4">
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/10">
+                    <span class="text-[10px] uppercase font-bold tracking-wider opacity-70">Gasto no Mês</span>
+                    <p class="text-2xl font-black text-white" id="totalExpenses">R$ 0,00</p>
+                </div>
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/10">
+                    <span class="text-[10px] uppercase font-bold tracking-wider opacity-70">Uso Cartões (Total)</span>
+                    <p class="text-2xl font-black text-indigo-200" id="avgLimitUsage">0%</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="px-4">
+        
+        <div id="limitAlerts" class="mb-6 space-y-2"></div>
+
+        <!-- Dashboard -->
+        <section id="dashboard" class="tab-content active space-y-6">
+            <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 text-sm flex items-center">
+                    <span class="w-2 h-4 bg-indigo-600 rounded-full mr-2"></span>
+                    Gastos por Categoria
+                </h3>
+                <div class="relative h-[250px]">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex justify-between items-center px-1">
+                    <h3 class="font-bold text-gray-800">Lançamentos Recentes</h3>
+                    <button onclick="syncWithGoogle()" class="text-xs font-bold text-indigo-600 flex items-center bg-indigo-50 px-3 py-2 rounded-xl">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Sincronizar Nuvem
+                    </button>
+                </div>
+                <div id="transactionsList" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- Aba Lançar (Mantida do anterior) -->
+        <section id="add" class="tab-content">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
+                <h2 class="text-xl font-black text-gray-800">Novo Lançamento</h2>
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Descrição</label>
+                    <input type="text" id="desc" placeholder="Ex: Mercado Mensal" class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-gray-800">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Valor Total</label>
+                        <input type="number" id="amount" placeholder="0,00" class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Quem?</label>
+                        <select id="user" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none">
+                            <option value="Marido">Marido</option>
+                            <option value="Esposa">Esposa</option>
+                            <option value="Filhos">Filhos</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Pagamento</label>
+                        <select id="method" onchange="toggleInstallmentsAndCards()" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none">
+                            <option value="Pix">Pix</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Débito">Débito</option>
+                            <option value="Crédito">Crédito</option>
+                        </select>
+                    </div>
+                    <div id="cardSelectionWrapper" class="space-y-1 hidden">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Cartão</label>
+                        <select id="selectedCard" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none"></select>
+                    </div>
+                </div>
+                <div id="installmentsWrapper" class="space-y-1 hidden">
+                    <label class="text-xs font-bold text-gray-500 uppercase ml-1">Parcelas</label>
+                    <select id="installments" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none">
+                        <option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6">6x</option><option value="7">7x</option><option value="8">8x</option><option value="9">9x</option><option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Categoria</label>
+                        <select id="category" onchange="updateSubcategories()" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none">
+                            <option value="Habitação">🏠 Habitação</option>
+                            <option value="Alimentação">🍕 Alimentação</option>
+                            <option value="Transporte">🚗 Transporte</option>
+                            <option value="Saúde">💪 Saúde</option>
+                            <option value="Lazer">🍿 Lazer</option>
+                            <option value="Vestimenta"> Vestimenta</option>
+                            <option value="Gastos Pessoais">Gastos Pessoais</option>
+                            <option value="Gastos Diversos">Gastos Diversos</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase ml-1">Subcat.</label>
+                        <select id="subcategory" class="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none"></select>
+                    </div>
+                </div>
+                <button onclick="saveTransaction()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition mt-4">
+                    Confirmar Lançamento
+                </button>
+            </div>
+        </section>
+
+        <!-- Aba Configurações (Integração Google) -->
+        <section id="settings" class="tab-content space-y-6">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <h2 class="text-xl font-black text-gray-800 mb-2">Integração Google</h2>
+                <p class="text-xs text-gray-400 mb-6 font-medium uppercase tracking-wider">Conecte sua planilha para backup</p>
+                
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Script URL (Google Apps Script)</label>
+                        <input type="text" id="googleScriptUrl" placeholder="https://script.google.com/macros/s/..." class="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm outline-none focus:ring-2 focus:ring-green-500">
+                        <p class="text-[9px] text-gray-400 mt-1 italic leading-relaxed">Cole aqui a URL gerada no menu 'Implantar' do Google Apps Script.</p>
+                    </div>
+                    
+                    <button onclick="saveSettings()" class="w-full bg-green-500 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-green-600 transition">
+                        Salvar Configuração
+                    </button>
+
+                    <div class="p-4 bg-yellow-50 rounded-2xl border border-yellow-100 mt-4">
+                        <h4 class="text-xs font-bold text-yellow-800 mb-2">Como configurar?</h4>
+                        <ol class="text-[10px] text-yellow-700 space-y-2 list-decimal ml-3">
+                            <li>Crie uma nova Planilha Google.</li>
+                            <li>Vá em Extensões > Apps Script.</li>
+                            <li>Cole o código que o Gemini te forneceu.</li>
+                            <li>Clique em Implantar > Nova Implantação > App da Web.</li>
+                            <li>Em 'Quem pode acessar', escolha 'Qualquer pessoa'.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cartões e Relatórios mantidos no script de navegação -->
+        <section id="cards" class="tab-content space-y-6"></section>
+        <section id="reports" class="tab-content space-y-6"></section>
+
+    </main>
+
+    <!-- Nav -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-100 px-6 py-4 flex justify-between items-center z-50">
+        <button onclick="switchTab('dashboard')" class="text-indigo-600 flex flex-col items-center flex-1" id="nav-dashboard">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 00-1.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+            <span class="text-[9px] font-black uppercase mt-1">Home</span>
+        </button>
+        <button onclick="switchTab('cards')" class="text-gray-300 flex flex-col items-center flex-1" id="nav-cards">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1z"/></svg>
+            <span class="text-[9px] font-black uppercase mt-1">Cards</span>
+        </button>
+        <button onclick="switchTab('add')" class="bg-indigo-600 p-3 rounded-2xl shadow-lg -mt-10 border-4 border-white transform active:scale-90 transition mx-2" id="nav-add">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+        </button>
+        <button onclick="switchTab('reports')" class="text-gray-300 flex flex-col items-center flex-1" id="nav-reports">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path></svg>
+            <span class="text-[9px] font-black uppercase mt-1">Relat.</span>
+        </button>
+        <button onclick="switchTab('settings')" class="text-gray-300 flex flex-col items-center flex-1" id="nav-settings">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.533 1.533 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path></svg>
+            <span class="text-[9px] font-black uppercase mt-1">Ajuste</span>
+        </button>
+    </nav>
+
+    <script>
+        const categoriesData = {
+            'Habitação': ['Financiamento', 'Luz', 'Água', 'Internet', 'Condomínio', 'IPTU'],
+            'Alimentação': ['Supermercado', 'Restaurante', 'Lanches', 'Ifood'],
+            'Transporte': ['Combustível', 'Uber', 'Seguro', 'Oficina', 'Passagem'],
+            'Saúde': ['Farmácia', 'Consulta', 'Laboratório', 'Unimed', 'Hospital'],
+            'Lazer': ['Cinema', 'Viagem', 'Streaming', 'Outros'],
+            'Vestimenta': ['Roupas', 'Calçado', 'Acessórios', 'Maquiagem'],
+            'Gastos Pessoais': ['Telefone', 'Celular', 'Acessórios Celular'],
+            'Gastos Diversos': ['Eletro-eletronicos', 'Presentes', 'Construção']
+        };
+
+        let transactions = JSON.parse(localStorage.getItem('family_fin_data')) || [];
+        let cards = JSON.parse(localStorage.getItem('family_fin_cards')) || [];
+        let config = JSON.parse(localStorage.getItem('family_fin_config')) || { scriptUrl: '' };
+        let chart;
+
+        window.onload = () => {
+            document.getElementById('googleScriptUrl').value = config.scriptUrl;
+            updateSubcategories();
+            updateCardSelects();
+            renderAll();
+            initChart();
+        };
+
+        function saveSettings() {
+            const url = document.getElementById('googleScriptUrl').value;
+            config.scriptUrl = url;
+            localStorage.setItem('family_fin_config', JSON.stringify(config));
+            alert("Configuração salva com sucesso!");
+        }
+
+        async function syncWithGoogle() {
+            if (!config.scriptUrl) {
+                alert("Configure a URL do Script na aba de Ajustes primeiro!");
+                switchTab('settings');
+                return;
+            }
+
+            const syncIcon = document.getElementById('syncStatus');
+            syncIcon.classList.add('sync-active', 'text-green-400');
+
+            try {
+                // Prepara dados formatados para a planilha
+                const payload = transactions.map(t => {
+                    const card = cards.find(c => c.id == t.cardId);
+                    return {
+                        data: t.date,
+                        descricao: t.desc,
+                        valor: t.amount,
+                        usuario: t.user,
+                        categoria: t.category,
+                        subcategoria: t.sub,
+                        metodo: t.method,
+                        cartao: card ? card.bank : '-'
+                    };
+                });
+
+                // Envia para o Google Apps Script
+                const response = await fetch(config.scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors', // Google Apps Script exige no-cors para POST simples ou tratamento específico
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                alert("Sincronização enviada para a planilha!");
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao sincronizar. Verifique a URL e as permissões.");
+            } finally {
+                syncIcon.classList.remove('sync-active', 'text-green-400');
+            }
+        }
+
+        // Funções de Lançamento e UI (Mantidas e otimizadas)
+        function toggleInstallmentsAndCards() {
+            const method = document.getElementById('method').value;
+            const instWrapper = document.getElementById('installmentsWrapper');
+            const cardWrapper = document.getElementById('cardSelectionWrapper');
+            cardWrapper.classList.toggle('hidden', !(method === 'Crédito' || method === 'Débito'));
+            instWrapper.classList.toggle('hidden', method !== 'Crédito');
+        }
+
+        function updateSubcategories() {
+            const cat = document.getElementById('category').value.replace(/[^\w\sÀ-ú]/gi, '').trim();
+            const subs = categoriesData[cat] || [];
+            document.getElementById('subcategory').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('') || '<option value="Geral">Geral</option>';
+        }
+
+        function saveTransaction() {
+            const desc = document.getElementById('desc').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const user = document.getElementById('user').value;
+            const category = document.getElementById('category').value.replace(/[^\w\sÀ-ú]/gi, '').trim();
+            const sub = document.getElementById('subcategory').value;
+            const method = document.getElementById('method').value;
+            const cardId = document.getElementById('selectedCard').value;
+            const inst = parseInt(document.getElementById('installments').value) || 1;
+
+            if (!desc || isNaN(amount)) return;
+
+            const baseDate = new Date();
+            for (let i = 0; i < inst; i++) {
+                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+                transactions.push({
+                    id: Date.now() + i,
+                    desc: inst > 1 ? `${desc} (${i+1}/${inst})` : desc,
+                    amount: amount / inst,
+                    category, sub, user, method, cardId,
+                    date: d.toISOString().split('T')[0]
+                });
+            }
+
+            localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+            resetForm();
+            renderAll();
+            updateChart();
+            // Sugestão de sync após salvar
+            if(confirm("Lançamento salvo! Sincronizar com o Google agora?")) syncWithGoogle();
+        }
+
+        function resetForm() {
+            document.getElementById('desc').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('method').selectedIndex = 0;
+            toggleInstallmentsAndCards();
+        }
+
+        function renderAll() {
+            const now = new Date();
+            const curM = now.getMonth();
+            const curY = now.getFullYear();
+            let mTotal = 0;
+            let totalLimitUsed = 0;
+            let totalLimitAvailable = 0;
+
+            // Render Lista do Mês
+            const list = document.getElementById('transactionsList');
+            list.innerHTML = '';
+            transactions.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(tx => {
+                const d = new Date(tx.date);
+                if (d.getMonth() === curM && d.getFullYear() === curY) {
+                    mTotal += tx.amount;
+                    list.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border-l-4 ${getBorderColor(tx.category)}">
+                            <div class="truncate">
+                                <p class="font-bold text-gray-800 text-sm truncate">${tx.desc}</p>
+                                <p class="text-[9px] text-gray-400 font-bold uppercase">${tx.sub} • ${tx.user}</p>
+                            </div>
+                            <div class="text-right ml-2">
+                                <p class="font-black text-gray-900 text-sm">R$ ${tx.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                                <button onclick="deleteTx(${tx.id})" class="text-[9px] text-red-300 font-bold uppercase">Excluir</button>
+                            </div>
+                        </div>`;
+                }
+            });
+
+            // Cálculo de Limites
+            cards.forEach(c => {
+                const used = transactions.filter(t => t.cardId == c.id).reduce((acc, t) => acc + t.amount, 0);
+                totalLimitUsed += used;
+                totalLimitAvailable += c.limit;
+            });
+
+            document.getElementById('totalExpenses').innerText = `R$ ${mTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('avgLimitUsage').innerText = totalLimitAvailable > 0 ? `${((totalLimitUsed/totalLimitAvailable)*100).toFixed(0)}%` : '0%';
+            document.getElementById('currentMonthDisplay').innerText = `Mês de ${new Intl.DateTimeFormat('pt-BR', {month:'long'}).format(now)}`;
+        }
+
+        function deleteTx(id) {
+            if(confirm("Excluir lançamento?")) {
+                transactions = transactions.filter(t => t.id != id);
+                localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+                renderAll();
+                updateChart();
+            }
+        }
+
+        function getBorderColor(cat) {
+            const colors = {'Habitação':'border-blue-400', 'Alimentação':'border-orange-400', 'Transporte':'border-gray-400', 'Saúde':'border-green-400', 'Lazer':'border-purple-400'};
+            return colors[cat] || 'border-indigo-400';
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('nav button').forEach(b => b.classList.replace('text-indigo-600', 'text-gray-300'));
+            document.getElementById(`nav-${id}`).classList.replace('text-gray-300', 'text-indigo-600');
+        }
+
+        function updateCardSelects() {
+            const html = cards.map(c => `<option value="${c.id}">${c.bank}</option>`).join('');
+            document.getElementById('selectedCard').innerHTML = html || '<option>Sem cartões</option>';
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const data = getChartData();
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{ data: Object.values(data), backgroundColor: ['#60a5fa','#fb923c','#94a3b8','#4ade80','#a78bfa'], borderWidth:0 }]
+                },
+                options: { maintainAspectRatio:false, plugins: { legend:{position:'bottom', labels:{boxWidth:10, font:{size:10}}}} }
+            });
+        }
+
+        function getChartData() {
+            const now = new Date();
+            const totals = {};
+            transactions.filter(t => new Date(t.date).getMonth() === now.getMonth()).forEach(t => {
+                totals[t.category] = (totals[t.category] || 0) + t.amount;
+            });
+            return totals;
+        }
+
+        function updateChart() { if(chart) { const d = getChartData(); chart.data.labels = Object.keys(d); chart.data.datasets[0].data = Object.values(d); chart.update(); } }
+    </script>
+</body>
+</html>
