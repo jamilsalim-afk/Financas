@@ -74,7 +74,8 @@
         <!-- Aba Lançar -->
         <section id="add" class="tab-content">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
-                <h2 class="text-xl font-black text-gray-800">Novo Lançamento</h2>
+                <h2 id="formTitle" class="text-xl font-black text-gray-800">Novo Lançamento</h2>
+                <input type="hidden" id="editingId">
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
@@ -144,8 +145,11 @@
                         <select id="subcategory" class="w-full p-4 bg-gray-50 rounded-2xl outline-none"></select>
                     </div>
                 </div>
-                <button onclick="saveTransaction()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition">
+                <button id="saveBtn" onclick="saveTransaction()" class="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-indigo-700 active:scale-95 transition">
                     Salvar
+                </button>
+                <button id="cancelEditBtn" onclick="cancelEdit()" class="w-full hidden bg-gray-200 text-gray-600 font-bold py-3 rounded-2xl">
+                    Cancelar Edição
                 </button>
             </div>
         </section>
@@ -171,9 +175,15 @@
                             </select>
                         </div>
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Limite Total</label>
-                        <input type="number" id="cardLimit" placeholder="0.00" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Limite Total</label>
+                            <input type="number" id="cardLimit" placeholder="0.00" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Dia de Fechamento</label>
+                            <input type="number" id="cardClosingDay" min="1" max="31" placeholder="Ex: 5" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                        </div>
                     </div>
                     <button onclick="addCard()" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition">
                         Adicionar Cartão
@@ -230,7 +240,7 @@
             </div>
 
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h2 class="text-lg font-black text-gray-800 mb-4">Detalhamento</h2>
+                <h2 class="text-lg font-black text-gray-800 mb-4 text-center">Detalhamento</h2>
                 <div id="reportItemsList" class="space-y-4"></div>
             </div>
         </section>
@@ -245,7 +255,9 @@
                         <input type="text" id="googleScriptUrl" placeholder="https://script.google.com/..." class="w-full p-4 bg-gray-50 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-green-500">
                     </div>
                     <button onclick="saveSettings()" class="w-full bg-green-500 text-white font-black py-4 rounded-2xl shadow-lg">Salvar Configuração</button>
-                    <div class="pt-6 border-t border-gray-100">
+                    
+                    <div class="pt-6 border-t border-gray-100 space-y-3">
+                        <p class="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest">Ações Perigosas</p>
                         <button onclick="clearAllData()" class="w-full bg-red-50 text-red-500 font-bold py-3 rounded-2xl text-[10px] uppercase tracking-widest">Limpar Memória do App</button>
                     </div>
                 </div>
@@ -336,6 +348,55 @@
             renderReports();
         }
 
+        // Funções de Edição
+        function editTx(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            document.getElementById('editingId').value = tx.id;
+            document.getElementById('desc').value = tx.desc;
+            document.getElementById('amount').value = tx.amount;
+            document.getElementById('date').value = tx.date;
+            document.getElementById('user').value = tx.user;
+            document.getElementById('category').value = tx.category;
+            document.getElementById('method').value = tx.method;
+            
+            updateSubcategories();
+            document.getElementById('subcategory').value = tx.sub;
+            
+            toggleInstallmentsAndCards();
+            if (tx.cardId) {
+                document.getElementById('selectedCard').value = tx.cardId;
+            }
+
+            document.getElementById('formTitle').innerText = "✏️ Editando Lançamento";
+            document.getElementById('saveBtn').innerText = "Atualizar Lançamento";
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            
+            switchTab('add');
+        }
+
+        function cancelEdit() {
+            document.getElementById('editingId').value = '';
+            document.getElementById('desc').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('formTitle').innerText = "Novo Lançamento";
+            document.getElementById('saveBtn').innerText = "Salvar";
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            switchTab('dashboard');
+        }
+
+        function togglePaid(id) {
+            const index = transactions.findIndex(t => t.id === id);
+            if (index !== -1) {
+                transactions[index].paid = !transactions[index].paid;
+                transactions[index].paymentDate = transactions[index].paid ? new Date().toISOString().split('T')[0] : null;
+                localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+                renderAll();
+                renderReports();
+            }
+        }
+
         function renderReports() {
             const fMonth = document.getElementById('filterMonth').value;
             const fUser = document.getElementById('filterUser').value;
@@ -365,19 +426,33 @@
             filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
             list.innerHTML = filtered.map(t => {
                 const card = t.cardId ? cards.find(c => c.id == t.cardId) : null;
+                const isCredit = t.method === 'Crédito';
                 return `
-                    <div class="border-b border-gray-50 pb-4">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <div class="flex justify-between items-start">
                             <div class="max-w-[70%]">
                                 <p class="text-xs font-black text-gray-800">${t.desc}</p>
                                 <p class="text-[9px] font-bold text-gray-400 uppercase mt-1">
                                     ${t.date.split('-').reverse().join('/')} • ${t.user} • ${t.category}
                                 </p>
-                                <p class="text-[8px] font-bold text-indigo-400 uppercase">
+                                <p class="text-[8px] font-bold text-indigo-400 uppercase mt-1">
                                     ${t.method} ${card ? `(${card.bank})` : ''}
                                 </p>
+                                ${t.paid ? `<p class="text-[8px] font-bold text-green-500 uppercase">✓ Pago em ${t.paymentDate.split('-').reverse().join('/')}</p>` : ''}
                             </div>
-                            <p class="font-black text-sm text-gray-900">R$ ${t.amount.toFixed(2)}</p>
+                            <div class="text-right">
+                                <p class="font-black text-sm text-gray-900 mb-2">R$ ${t.amount.toFixed(2)}</p>
+                                <div class="flex space-x-2 justify-end">
+                                    ${isCredit ? `
+                                        <button onclick="togglePaid(${t.id})" class="p-2 ${t.paid ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-400'} rounded-lg transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="editTx(${t.id})" class="p-2 bg-indigo-50 text-indigo-500 rounded-lg">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -388,18 +463,20 @@
             const bank = document.getElementById('cardBank').value;
             const flag = document.getElementById('cardFlag').value;
             const limit = parseFloat(document.getElementById('cardLimit').value);
+            const closing = parseInt(document.getElementById('cardClosingDay').value);
             
-            if(!bank || isNaN(limit)) return alert("Preencha o banco e o limite!");
+            if(!bank || isNaN(limit) || isNaN(closing)) return alert("Preencha todos os campos do cartão!");
             
-            cards.push({ id: Date.now(), bank, flag, limit });
+            cards.push({ id: Date.now(), bank, flag, limit, closingDay: closing });
             localStorage.setItem('family_fin_cards', JSON.stringify(cards));
             document.getElementById('cardBank').value = '';
             document.getElementById('cardLimit').value = '';
+            document.getElementById('cardClosingDay').value = '';
             renderAll();
         }
 
         function deleteCard(id) {
-            if(confirm("Excluir cartão?")) {
+            if(confirm("Excluir cartão? Isso não apagará as despesas dele.")) {
                 cards = cards.filter(c => c.id !== id);
                 localStorage.setItem('family_fin_cards', JSON.stringify(cards));
                 renderAll();
@@ -422,8 +499,8 @@
             document.getElementById('subcategory').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
         }
 
-        // SALVAR TRANSAÇÃO (CORREÇÃO DE CARTÃO VAZIO PARA DINHEIRO/PIX)
         function saveTransaction() {
+            const editingId = document.getElementById('editingId').value;
             const desc = document.getElementById('desc').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const user = document.getElementById('user').value;
@@ -431,47 +508,58 @@
             const sub = document.getElementById('subcategory').value;
             const method = document.getElementById('method').value;
             const isCardMethod = (method === 'Crédito' || method === 'Débito');
-            
-            // Se não for cartão, força o ID para null para não impactar o limite de nenhum cartão
             const cardId = isCardMethod ? document.getElementById('selectedCard').value : null;
-            
             const inst = (method === 'Crédito') ? (parseInt(document.getElementById('installments').value) || 1) : 1;
             const selectedDateString = document.getElementById('date').value;
 
             if (!desc || isNaN(amount) || !selectedDateString) return alert("Preencha descrição, valor e data!");
-            if (isCardMethod && !cardId) return alert("Selecione um cartão para este método!");
+            if (isCardMethod && !cardId) return alert("Selecione um cartão!");
+
+            // Se for edição, removemos o antigo primeiro
+            if (editingId) {
+                transactions = transactions.filter(t => t.id != editingId);
+            }
 
             const [year, month, day] = selectedDateString.split('-').map(Number);
-            
+            const selectedCardObj = cards.find(c => c.id == cardId);
+
             for (let i = 0; i < inst; i++) {
-                const d = new Date(year, (month - 1) + i, day);
+                let d = new Date(year, (month - 1) + i, day);
+                
+                // Lógica de Melhor Dia de Compra (Fechamento de Fatura)
+                if (method === 'Crédito' && selectedCardObj) {
+                    const compraDia = day;
+                    // Se o dia da compra for igual ou maior que o fechamento, joga para a próxima fatura (+1 mês)
+                    if (compraDia >= selectedCardObj.closingDay) {
+                        d = new Date(year, (month - 1) + i + 1, 1); // Movemos para o dia 1 do mês seguinte para controle de fatura
+                    }
+                }
                 
                 transactions.push({
-                    id: Date.now() + i,
+                    id: editingId && i === 0 ? parseInt(editingId) : Date.now() + i,
                     desc: inst > 1 ? `${desc} (${i+1}/${inst})` : desc,
                     amount: amount / inst,
                     category, sub, user, method, cardId,
-                    date: d.toISOString().split('T')[0]
+                    date: d.toISOString().split('T')[0],
+                    paid: method !== 'Crédito', // Dinheiro/Débito nasce pago
+                    paymentDate: method !== 'Crédito' ? selectedDateString : null
                 });
             }
 
             localStorage.setItem('family_fin_data', JSON.stringify(transactions));
-            populateMonthFilter();
-            alert("Lançamento salvo!");
-            
-            document.getElementById('desc').value = '';
-            document.getElementById('amount').value = '';
-            document.getElementById('date').value = new Date().toISOString().split('T')[0];
-            
-            switchTab('dashboard');
+            alert(editingId ? "Atualizado com sucesso!" : "Lançamento salvo!");
+            cancelEdit();
+            renderAll();
         }
 
         function deleteTx(id) {
-            transactions = transactions.filter(t => t.id != id);
-            localStorage.setItem('family_fin_data', JSON.stringify(transactions));
-            populateMonthFilter();
-            renderAll();
-            updateChart();
+            if(confirm("Deseja apagar este lançamento?")) {
+                transactions = transactions.filter(t => t.id != id);
+                localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+                populateMonthFilter();
+                renderAll();
+                updateChart();
+            }
         }
 
         function renderAll() {
@@ -494,7 +582,10 @@
                             </div>
                             <div class="text-right min-w-[80px]">
                                 <p class="font-black text-gray-900 text-sm">R$ ${tx.amount.toFixed(2)}</p>
-                                <button onclick="deleteTx(${tx.id})" class="text-[9px] text-red-400 font-bold uppercase">Apagar</button>
+                                <div class="flex space-x-2 mt-1 justify-end">
+                                    <button onclick="editTx(${tx.id})" class="text-[9px] text-indigo-400 font-bold uppercase">Editar</button>
+                                    <button onclick="deleteTx(${tx.id})" class="text-[9px] text-red-400 font-bold uppercase">Apagar</button>
+                                </div>
                             </div>
                         </div>`;
                 });
@@ -504,15 +595,15 @@
             if(cList) {
                 cList.innerHTML = '';
                 cards.forEach(c => {
-                    // Soma apenas transações que possuam o ID deste cartão específico
-                    const used = transactions.filter(t => t.cardId == c.id && t.date.startsWith(curM)).reduce((acc, t) => acc + t.amount, 0);
+                    // O limite só é consumido por compras de crédito NÃO PAGAS
+                    const used = transactions.filter(t => t.cardId == c.id && t.method === 'Crédito' && !t.paid).reduce((acc, t) => acc + t.amount, 0);
                     limitUsed += used; limitTotal += c.limit;
                     const perc = Math.min((used / c.limit) * 100, 100);
                     cList.innerHTML += `
                         <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden relative">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">${c.flag}</p>
+                                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">${c.flag} • FECHAMENTO DIA ${c.closingDay}</p>
                                     <p class="text-lg font-black text-gray-800">${c.bank}</p>
                                 </div>
                                 <button onclick="deleteCard(${c.id})" class="p-2 bg-red-50 text-red-400 rounded-xl">
@@ -520,13 +611,13 @@
                                 </button>
                             </div>
                             <div class="mb-2 flex justify-between items-end">
-                                <div><p class="text-[9px] font-bold text-gray-400 uppercase">Gasto atual</p><p class="text-xl font-black text-gray-900">R$ ${used.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
-                                <div class="text-right"><p class="text-[9px] font-bold text-gray-400 uppercase">Limite</p><p class="text-sm font-bold text-gray-600">R$ ${c.limit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
+                                <div><p class="text-[9px] font-bold text-gray-400 uppercase">Limite Comprometido</p><p class="text-xl font-black text-gray-900">R$ ${used.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
+                                <div class="text-right"><p class="text-[9px] font-bold text-gray-400 uppercase">Total</p><p class="text-sm font-bold text-gray-600">R$ ${c.limit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
                             </div>
                             <div class="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
                                 <div class="h-full transition-all duration-500 ${perc > 90 ? 'bg-red-500' : 'bg-indigo-600'}" style="width: ${perc}%"></div>
                             </div>
-                            <div class="mt-2 text-[10px] font-black text-right ${perc > 90 ? 'text-red-500' : 'text-indigo-400'}">${perc.toFixed(1)}% USADO</div>
+                            <div class="mt-2 text-[10px] font-black text-right ${perc > 90 ? 'text-red-500' : 'text-indigo-400'}">${perc.toFixed(1)}% EM ABERTO</div>
                         </div>`;
                 });
             }
@@ -542,7 +633,9 @@
         }
 
         function initChart() {
-            const ctx = document.getElementById('categoryChart').getContext('2d');
+            const canvas = document.getElementById('categoryChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
             const d = getChartData();
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -560,7 +653,7 @@
 
         function updateChart() { if(chartInstance) { const d = getChartData(); chartInstance.data.labels = Object.keys(d); chartInstance.data.datasets[0].data = Object.values(d); chartInstance.update(); } }
         function saveSettings() { config.scriptUrl = document.getElementById('googleScriptUrl').value; localStorage.setItem('family_fin_config', JSON.stringify(config)); alert("Configurações salvas!"); }
-        function clearAllData() { if(confirm("Limpar todos os dados?")) { localStorage.clear(); location.reload(); } }
+        function clearAllData() { if(confirm("CUIDADO: Isso apagará tudo no seu celular! Continuar?")) { localStorage.clear(); location.reload(); } }
 
         async function syncWithGoogle() {
             if (!config.scriptUrl) return alert("Configure a URL do Google Script primeiro!");
@@ -569,11 +662,23 @@
             try {
                 const payload = transactions.map(t => {
                     const card = t.cardId ? cards.find(c => c.id == t.cardId) : null;
-                    return { data: t.date, descricao: t.desc, valor: t.amount, usuario: t.user, categoria: t.category, subcategoria: t.sub, metodo: t.method, cartao: card ? `${card.bank} (${card.flag})` : '-' };
+                    return { 
+                        data: t.date, 
+                        descricao: t.desc, 
+                        valor: t.amount, 
+                        usuario: t.user, 
+                        categoria: t.category, 
+                        subcategoria: t.sub, 
+                        metodo: t.method, 
+                        cartao: card ? `${card.bank} (${card.flag})` : '-',
+                        status: t.paid ? 'Pago' : 'Pendente',
+                        data_pagamento: t.paymentDate || '-'
+                    };
                 });
+                // Importante: O script do Google Apps Script precisa usar .appendRow ou um loop que adicione apenas novos dados
                 await fetch(config.scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                alert("Sincronizado!");
-            } catch (e) { alert("Erro ao sincronizar."); } finally { syncIcon.classList.remove('sync-active'); }
+                alert("Dados enviados para a nuvem!");
+            } catch (e) { alert("Erro ao sincronizar. Verifique a URL do Script."); } finally { syncIcon.classList.remove('sync-active'); }
         }
     </script>
 </body>
