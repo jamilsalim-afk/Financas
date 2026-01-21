@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FamíliaFinanças - Cloud Sync</title>
+    <title>FamíliaFinanças - Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -13,7 +13,10 @@
         .tab-content.active { display: block; }
         .sync-active { animation: pulse 2s infinite; color: #10b981 !important; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        input, select { font-size: 16px !important; } /* Evita zoom no iPhone */
+        input, select { font-size: 16px !important; }
+        .nav-btn.active { color: #4f46e5; }
+        .filter-select { @apply p-2 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold uppercase outline-none focus:ring-2 focus:ring-indigo-500; }
+        .card-gradient { background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); }
     </style>
 </head>
 <body class="pb-24">
@@ -50,8 +53,6 @@
 
     <main class="px-4">
         
-        <div id="limitAlerts" class="mb-4"></div>
-
         <!-- Dashboard -->
         <section id="dashboard" class="tab-content active space-y-6">
             <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
@@ -70,18 +71,15 @@
             </div>
         </section>
 
-        <!-- Aba Lançar -->
+        <!-- Aba Lançar (ATUALIZADA) -->
         <section id="add" class="tab-content">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
                 <h2 class="text-xl font-black text-gray-800">Novo Lançamento</h2>
-                <div class="space-y-1">
-                    <label class="text-xs font-bold text-gray-500 uppercase">Descrição</label>
-                    <input type="text" id="desc" placeholder="Ex: Mercado" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500">
-                </div>
+                
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-gray-500 uppercase">Valor</label>
-                        <input type="number" id="amount" placeholder="0.00" class="w-full p-4 bg-gray-50 rounded-2xl outline-none">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Data</label>
+                        <input type="date" id="date" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-transparent focus:border-indigo-200">
                     </div>
                     <div class="space-y-1">
                         <label class="text-xs font-bold text-gray-500 uppercase">Quem?</label>
@@ -92,7 +90,17 @@
                         </select>
                     </div>
                 </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-gray-500 uppercase">Descrição</label>
+                    <input type="text" id="desc" placeholder="Ex: Mercado" class="w-full p-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-indigo-200">
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Valor Total</label>
+                        <input type="number" id="amount" step="0.01" placeholder="0.00" class="w-full p-4 bg-gray-50 rounded-2xl outline-none">
+                    </div>
                     <div class="space-y-1">
                         <label class="text-xs font-bold text-gray-500 uppercase">Pagamento</label>
                         <select id="method" onchange="toggleInstallmentsAndCards()" class="w-full p-4 bg-gray-50 rounded-2xl outline-none">
@@ -102,17 +110,21 @@
                             <option value="Crédito">Crédito</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
                     <div id="cardSelectionWrapper" class="space-y-1 hidden">
                         <label class="text-xs font-bold text-gray-500 uppercase">Cartão</label>
                         <select id="selectedCard" class="w-full p-4 bg-gray-50 rounded-2xl outline-none"></select>
                     </div>
+                    <div id="installmentsWrapper" class="space-y-1 hidden">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Parcelas</label>
+                        <select id="installments" class="w-full p-4 bg-gray-50 rounded-2xl outline-none">
+                            <option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6">6x</option><option value="10">10x</option><option value="12">12x</option>
+                        </select>
+                    </div>
                 </div>
-                <div id="installmentsWrapper" class="space-y-1 hidden">
-                    <label class="text-xs font-bold text-gray-500 uppercase">Parcelas</label>
-                    <select id="installments" class="w-full p-4 bg-gray-50 rounded-2xl outline-none">
-                        <option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="6">6x</option><option value="10">10x</option><option value="12">12x</option>
-                    </select>
-                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="text-xs font-bold text-gray-500 uppercase">Categoria</label>
@@ -142,20 +154,84 @@
         <section id="cards" class="tab-content space-y-6">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                 <h2 class="text-xl font-black text-gray-800 mb-4">Novo Cartão</h2>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <input type="text" id="cardBank" placeholder="Banco/Nome" class="p-4 bg-gray-50 rounded-2xl outline-none">
-                    <input type="number" id="cardLimit" placeholder="Limite" class="p-4 bg-gray-50 rounded-2xl outline-none">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Nome do Banco</label>
+                            <input type="text" id="cardBank" placeholder="Ex: Nubank, Itaú" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Bandeira</label>
+                            <select id="cardFlag" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                                <option value="Visa">Visa</option>
+                                <option value="Mastercard">Mastercard</option>
+                                <option value="Elo">Elo</option>
+                                <option value="Amex">American Express</option>
+                                <option value="Outra">Outra</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500 uppercase">Limite Total</label>
+                        <input type="number" id="cardLimit" placeholder="0.00" class="w-full p-4 bg-gray-50 rounded-2xl outline-none border border-gray-100 focus:border-indigo-300">
+                    </div>
+                    <button onclick="addCard()" class="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition">
+                        Adicionar Cartão
+                    </button>
                 </div>
-                <button onclick="addCard()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl">Adicionar Cartão</button>
             </div>
-            <div id="cardsList" class="space-y-3"></div>
+            
+            <h3 class="font-bold text-gray-800 px-1">Seus Cartões</h3>
+            <div id="cardsList" class="space-y-4"></div>
         </section>
 
         <!-- Aba Relatórios -->
         <section id="reports" class="tab-content space-y-6">
+            <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                <h2 class="text-sm font-black text-gray-800 mb-3 flex items-center justify-between">
+                    Filtros de Relatório
+                    <button onclick="resetFilters()" class="text-[9px] text-indigo-500 font-bold uppercase tracking-widest">Limpar</button>
+                </h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="filterMonth" class="filter-select" onchange="renderReports()">
+                        <option value="all">Todos os Meses</option>
+                    </select>
+                    <select id="filterUser" class="filter-select" onchange="renderReports()">
+                        <option value="all">Todas Pessoas</option>
+                        <option value="Marido">Marido</option>
+                        <option value="Esposa">Esposa</option>
+                        <option value="Filhos">Filhos</option>
+                    </select>
+                    <select id="filterCategory" class="filter-select" onchange="renderReports()">
+                        <option value="all">Todas Categorias</option>
+                        <option value="Habitação">Habitação</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Saúde">Saúde</option>
+                        <option value="Lazer">Lazer</option>
+                        <option value="Vestimenta">Vestimenta</option>
+                        <option value="Gastos Pessoais">Pessoais</option>
+                        <option value="Gastos Diversos">Diversos</option>
+                    </select>
+                    <select id="filterMethod" class="filter-select" onchange="renderReports()">
+                        <option value="all">Todos Métodos</option>
+                        <option value="Pix">Pix</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Débito">Débito</option>
+                        <option value="Crédito">Crédito</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-indigo-900 p-6 rounded-3xl text-white shadow-xl">
+                <p class="text-[10px] font-bold opacity-70 uppercase mb-1">Total Selecionado</p>
+                <p class="text-3xl font-black" id="filteredTotal">R$ 0,00</p>
+                <div id="filterSummaryText" class="text-[9px] mt-2 opacity-60 font-bold uppercase tracking-tighter italic">Mostrando tudo</div>
+            </div>
+
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h2 class="text-xl font-black text-gray-800 mb-2">Relatório Anual</h2>
-                <div id="annualSummary" class="space-y-2 text-sm"></div>
+                <h2 class="text-lg font-black text-gray-800 mb-4">Detalhamento</h2>
+                <div id="reportItemsList" class="space-y-4"></div>
             </div>
         </section>
 
@@ -165,85 +241,159 @@
                 <h2 class="text-xl font-black text-gray-800 mb-4">Configurações</h2>
                 <div class="space-y-4">
                     <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Google Apps Script URL</label>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">URL do Google Apps Script</label>
                         <input type="text" id="googleScriptUrl" placeholder="https://script.google.com/..." class="w-full p-4 bg-gray-50 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-green-500">
                     </div>
                     <button onclick="saveSettings()" class="w-full bg-green-500 text-white font-black py-4 rounded-2xl shadow-lg">Salvar Configuração</button>
-                    <button onclick="clearAllData()" class="w-full bg-red-100 text-red-600 font-bold py-3 rounded-2xl text-xs uppercase">Limpar Todos os Dados</button>
+                    <div class="pt-6 border-t border-gray-100">
+                        <button onclick="clearAllData()" class="w-full bg-red-50 text-red-500 font-bold py-3 rounded-2xl text-[10px] uppercase tracking-widest">Limpar Memória do App</button>
+                    </div>
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- Nav -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-4 py-3 flex justify-around items-center z-50">
-        <button onclick="switchTab('dashboard')" class="nav-btn text-indigo-600 flex flex-col items-center" id="nav-dashboard">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 00-1.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
-            <span class="text-[9px] font-bold mt-1">HOME</span>
+    <!-- Barra de Navegação Inferior -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 py-3 flex justify-around items-center z-50">
+        <button onclick="switchTab('dashboard')" class="nav-btn active flex flex-col items-center transition-all" id="nav-dashboard">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="text-[9px] font-bold mt-1 uppercase">Início</span>
         </button>
-        <button onclick="switchTab('cards')" class="nav-btn text-gray-400 flex flex-col items-center" id="nav-cards">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9z"/></svg>
-            <span class="text-[9px] font-bold mt-1">CARDS</span>
+        <button onclick="switchTab('cards')" class="nav-btn text-gray-400 flex flex-col items-center transition-all" id="nav-cards">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            <span class="text-[9px] font-bold mt-1 uppercase">Cards</span>
         </button>
-        <button onclick="switchTab('add')" class="bg-indigo-600 p-4 rounded-2xl shadow-lg -mt-12 border-4 border-white transition-transform active:scale-90" id="nav-add">
+        <button onclick="switchTab('add')" class="bg-indigo-600 p-4 rounded-2xl shadow-xl -mt-12 border-4 border-[#f8fafc] transition-transform active:scale-90" id="nav-add">
             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
         </button>
-        <button onclick="switchTab('reports')" class="nav-btn text-gray-400 flex flex-col items-center" id="nav-reports">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
-            <span class="text-[9px] font-bold mt-1">RELAT.</span>
+        <button onclick="switchTab('reports')" class="nav-btn text-gray-400 flex flex-col items-center transition-all" id="nav-reports">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span class="text-[9px] font-bold mt-1 uppercase">Relat.</span>
         </button>
-        <button onclick="switchTab('settings')" class="nav-btn text-gray-400 flex flex-col items-center" id="nav-settings">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.533 1.533 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path></svg>
-            <span class="text-[9px] font-bold mt-1">AJUSTE</span>
+        <button onclick="switchTab('settings')" class="nav-btn text-gray-400 flex flex-col items-center transition-all" id="nav-settings">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-[9px] font-bold mt-1 uppercase">Ajuste</span>
         </button>
     </nav>
 
     <script>
-        // Dados mestre
+        // Dados Fixos
         const categoriesData = {
-            'Habitação': ['Aluguel/Finan.', 'Luz', 'Água', 'Internet', 'Condomínio', 'IPTU'],
-            'Alimentação': ['Supermercado', 'Restaurante', 'Lanches', 'App Entrega'],
-            'Transporte': ['Combustível', 'Uber', 'Seguro', 'Manutenção'],
-            'Saúde': ['Farmácia', 'Consulta', 'Plano Saúde'],
-            'Lazer': ['Cinema', 'Viagem', 'Streaming'],
-            'Vestimenta': ['Roupas', 'Calçados'],
-            'Gastos Pessoais': ['Celular', 'Beleza'],
-            'Gastos Diversos': ['Presentes', 'Eletrônicos', 'Outros']
+            'Habitação': ['Aluguel/Finan.', 'Luz', 'Água', 'Internet', 'Condomínio', 'IPTU', 'Manutenção Casa'],
+            'Alimentação': ['Supermercado', 'Restaurante', 'Lanches', 'App Entrega', 'Padaria'],
+            'Transporte': ['Combustível', 'Uber/99', 'Seguro', 'Manutenção Carro', 'Estacionamento'],
+            'Saúde': ['Farmácia', 'Consulta', 'Plano Saúde', 'Dentista'],
+            'Lazer': ['Cinema', 'Viagem', 'Streaming', 'Passeio'],
+            'Vestimenta': ['Roupas', 'Calçados', 'Acessórios'],
+            'Gastos Pessoais': ['Celular', 'Beleza/Corte', 'Educação'],
+            'Gastos Diversos': ['Presentes', 'Eletrônicos', 'Pet Shop', 'Outros']
         };
 
+        // Estado do App
         let transactions = JSON.parse(localStorage.getItem('family_fin_data')) || [];
         let cards = JSON.parse(localStorage.getItem('family_fin_cards')) || [];
         let config = JSON.parse(localStorage.getItem('family_fin_config')) || { scriptUrl: '' };
-        let chart;
+        let chartInstance = null;
 
-        // Inicialização
         window.onload = () => {
+            // Define data de hoje por padrão no input
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+            
             document.getElementById('googleScriptUrl').value = config.scriptUrl;
             updateSubcategories();
+            populateMonthFilter();
             renderAll();
             initChart();
         };
 
-        // Navegação
-        function switchTab(id) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('text-gray-400');
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) { activeBtn.classList.add('active'); activeBtn.classList.remove('text-gray-400'); }
             
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.replace('text-indigo-600', 'text-gray-400'));
-            const activeBtn = document.getElementById(`nav-${id}`);
-            if(activeBtn) activeBtn.classList.replace('text-gray-400', 'text-indigo-600');
-            
-            if(id === 'dashboard') updateChart();
+            if(tabId === 'dashboard') updateChart();
+            if(tabId === 'reports') renderReports();
+            renderAll();
         }
 
-        // Funções de Cartão
+        function populateMonthFilter() {
+            const select = document.getElementById('filterMonth');
+            const months = [...new Set(transactions.map(t => t.date.substring(0, 7)))].sort().reverse();
+            select.innerHTML = '<option value="all">Todos os Meses</option>' + 
+                months.map(m => `<option value="${m}">${m.split('-').reverse().join('/')}</option>`).join('');
+        }
+
+        function resetFilters() {
+            document.getElementById('filterMonth').value = 'all';
+            document.getElementById('filterUser').value = 'all';
+            document.getElementById('filterCategory').value = 'all';
+            document.getElementById('filterMethod').value = 'all';
+            renderReports();
+        }
+
+        function renderReports() {
+            const fMonth = document.getElementById('filterMonth').value;
+            const fUser = document.getElementById('filterUser').value;
+            const fCat = document.getElementById('filterCategory').value;
+            const fMethod = document.getElementById('filterMethod').value;
+
+            let filtered = transactions.filter(t => {
+                const matchMonth = fMonth === 'all' || t.date.startsWith(fMonth);
+                const matchUser = fUser === 'all' || t.user === fUser;
+                const matchCat = fCat === 'all' || t.category === fCat;
+                const matchMethod = fMethod === 'all' || t.method === fMethod;
+                return matchMonth && matchUser && matchCat && matchMethod;
+            });
+
+            const list = document.getElementById('reportItemsList');
+            const totalEl = document.getElementById('filteredTotal');
+            const totalVal = filtered.reduce((acc, t) => acc + t.amount, 0);
+            
+            totalEl.innerText = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('filterSummaryText').innerText = `Encontrados ${filtered.length} lançamentos`;
+
+            if(filtered.length === 0) {
+                list.innerHTML = `<p class="text-center text-gray-400 text-xs py-10 font-bold uppercase tracking-widest">Nenhum dado encontrado</p>`;
+                return;
+            }
+
+            filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
+            list.innerHTML = filtered.map(t => {
+                const card = cards.find(c => c.id == t.cardId);
+                return `
+                    <div class="border-b border-gray-50 pb-4">
+                        <div class="flex justify-between items-start">
+                            <div class="max-w-[70%]">
+                                <p class="text-xs font-black text-gray-800">${t.desc}</p>
+                                <p class="text-[9px] font-bold text-gray-400 uppercase mt-1">
+                                    ${t.date.split('-').reverse().join('/')} • ${t.user} • ${t.category}
+                                </p>
+                                <p class="text-[8px] font-bold text-indigo-400 uppercase">
+                                    ${t.method} ${card ? `(${card.bank})` : ''}
+                                </p>
+                            </div>
+                            <p class="font-black text-sm text-gray-900">R$ ${t.amount.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function addCard() {
             const bank = document.getElementById('cardBank').value;
+            const flag = document.getElementById('cardFlag').value;
             const limit = parseFloat(document.getElementById('cardLimit').value);
-            if(!bank || isNaN(limit)) return;
             
-            cards.push({ id: Date.now(), bank, limit });
+            if(!bank || isNaN(limit)) return alert("Preencha o banco e o limite!");
+            
+            cards.push({ id: Date.now(), bank, flag, limit });
             localStorage.setItem('family_fin_cards', JSON.stringify(cards));
             document.getElementById('cardBank').value = '';
             document.getElementById('cardLimit').value = '';
@@ -251,16 +401,11 @@
         }
 
         function deleteCard(id) {
-            cards = cards.filter(c => c.id !== id);
-            localStorage.setItem('family_fin_cards', JSON.stringify(cards));
-            renderAll();
-        }
-
-        // Funções de Transação
-        function updateSubcategories() {
-            const cat = document.getElementById('category').value.replace(/[^\w\sÀ-ú]/gi, '').trim();
-            const subs = categoriesData[cat] || [];
-            document.getElementById('subcategory').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+            if(confirm("Excluir cartão?")) {
+                cards = cards.filter(c => c.id !== id);
+                localStorage.setItem('family_fin_cards', JSON.stringify(cards));
+                renderAll();
+            }
         }
 
         function toggleInstallmentsAndCards() {
@@ -269,25 +414,38 @@
             document.getElementById('cardSelectionWrapper').classList.toggle('hidden', !isCard);
             document.getElementById('installmentsWrapper').classList.toggle('hidden', method !== 'Crédito');
             
-            const html = cards.map(c => `<option value="${c.id}">${c.bank}</option>`).join('');
-            document.getElementById('selectedCard').innerHTML = html || '<option disabled>Cadastre um cartão antes</option>';
+            const cardSelect = document.getElementById('selectedCard');
+            cardSelect.innerHTML = cards.map(c => `<option value="${c.id}">${c.bank} (${c.flag})</option>`).join('') || '<option disabled>Cadastre um cartão primeiro</option>';
         }
 
+        function updateSubcategories() {
+            const cat = document.getElementById('category').value;
+            const subs = categoriesData[cat] || [];
+            document.getElementById('subcategory').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        // SALVAR TRANSAÇÃO (COM DATA CUSTOMIZADA)
         function saveTransaction() {
             const desc = document.getElementById('desc').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const user = document.getElementById('user').value;
-            const category = document.getElementById('category').value.replace(/[^\w\sÀ-ú]/gi, '').trim();
+            const category = document.getElementById('category').value;
             const sub = document.getElementById('subcategory').value;
             const method = document.getElementById('method').value;
             const cardId = document.getElementById('selectedCard').value;
             const inst = parseInt(document.getElementById('installments').value) || 1;
+            const selectedDateString = document.getElementById('date').value;
 
-            if (!desc || isNaN(amount)) { alert("Preencha descrição e valor!"); return; }
+            if (!desc || isNaN(amount) || !selectedDateString) return alert("Preencha descrição, valor e data!");
+            if ((method === 'Crédito' || method === 'Débito') && !cardId) return alert("Selecione um cartão!");
 
-            const baseDate = new Date();
+            // Criar objeto de data a partir do input (YYYY-MM-DD)
+            const [year, month, day] = selectedDateString.split('-').map(Number);
+            
             for (let i = 0; i < inst; i++) {
-                const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+                // Para parcelas, adicionamos meses à data original
+                const d = new Date(year, (month - 1) + i, day);
+                
                 transactions.push({
                     id: Date.now() + i,
                     desc: inst > 1 ? `${desc} (${i+1}/${inst})` : desc,
@@ -298,174 +456,126 @@
             }
 
             localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+            populateMonthFilter();
             alert("Lançamento salvo!");
+            
+            // Reset campos
             document.getElementById('desc').value = '';
             document.getElementById('amount').value = '';
-            switchTab('dashboard');
-            renderAll();
-        }
-
-        // Renderização Global
-        function renderAll() {
-            const now = new Date();
-            const curM = now.getMonth();
-            const curY = now.getFullYear();
+            // Mantém a data de hoje para o próximo
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
             
-            let mTotal = 0;
-            let totalLimitUsed = 0;
-            let totalLimitAvail = 0;
-
-            // Lista Transações
-            const list = document.getElementById('transactionsList');
-            list.innerHTML = '';
-            transactions.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(tx => {
-                const d = new Date(tx.date);
-                if (d.getMonth() === curM && d.getFullYear() === curY) {
-                    mTotal += tx.amount;
-                    list.innerHTML += `
-                        <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border-l-4 ${getBorderColor(tx.category)}">
-                            <div class="truncate">
-                                <p class="font-bold text-gray-800 text-sm truncate">${tx.desc}</p>
-                                <p class="text-[9px] text-gray-400 font-bold uppercase">${tx.sub} • ${tx.user}</p>
-                            </div>
-                            <div class="text-right ml-2 flex flex-col items-end">
-                                <p class="font-black text-gray-900 text-sm">R$ ${tx.amount.toFixed(2)}</p>
-                                <button onclick="deleteTx(${tx.id})" class="text-[9px] text-red-400 font-bold uppercase mt-1">Apagar</button>
-                            </div>
-                        </div>`;
-                }
-            });
-
-            // Lista Cartões
-            const cList = document.getElementById('cardsList');
-            cList.innerHTML = '';
-            cards.forEach(c => {
-                const used = transactions.filter(t => t.cardId == c.id).reduce((acc, t) => acc + t.amount, 0);
-                totalLimitUsed += used;
-                totalLimitAvail += c.limit;
-                const perc = Math.min((used / c.limit) * 100, 100);
-                cList.innerHTML += `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <div class="flex justify-between items-start mb-2">
-                            <div><p class="font-black text-gray-800">${c.bank}</p><p class="text-[10px] text-gray-400 uppercase font-bold">Limite: R$ ${c.limit}</p></div>
-                            <button onclick="deleteCard(${c.id})" class="text-red-400"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg></button>
-                        </div>
-                        <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                            <div class="h-full ${perc > 90 ? 'bg-red-500' : 'bg-indigo-500'}" style="width: ${perc}%"></div>
-                        </div>
-                        <p class="text-[10px] mt-2 text-right font-bold text-gray-500">Usado: R$ ${used.toFixed(2)} (${perc.toFixed(0)}%)</p>
-                    </div>`;
-            });
-
-            // Relatório Anual
-            const rList = document.getElementById('annualSummary');
-            rList.innerHTML = '';
-            const yearlyData = {};
-            transactions.forEach(t => {
-                const m = new Date(t.date).getMonth();
-                yearlyData[m] = (yearlyData[m] || 0) + t.amount;
-            });
-            for(let i=0; i<12; i++){
-                if(yearlyData[i]) {
-                    const monthName = new Intl.DateTimeFormat('pt-BR', {month:'short'}).format(new Date(2024, i, 1));
-                    rList.innerHTML += `<div class="flex justify-between border-b border-gray-50 py-2"><span class="capitalize font-bold">${monthName}</span><span>R$ ${yearlyData[i].toFixed(2)}</span></div>`;
-                }
-            }
-
-            document.getElementById('totalExpenses').innerText = `R$ ${mTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-            document.getElementById('avgLimitUsage').innerText = totalLimitAvail > 0 ? `${((totalLimitUsed/totalLimitAvail)*100).toFixed(0)}%` : '0%';
-            document.getElementById('currentMonthDisplay').innerText = `Mês de ${new Intl.DateTimeFormat('pt-BR', {month:'long'}).format(now)}`;
+            switchTab('dashboard');
         }
 
         function deleteTx(id) {
             transactions = transactions.filter(t => t.id != id);
             localStorage.setItem('family_fin_data', JSON.stringify(transactions));
+            populateMonthFilter();
             renderAll();
             updateChart();
         }
 
-        function getBorderColor(cat) {
-            const colors = {'Habitação':'border-blue-400', 'Alimentação':'border-orange-400', 'Transporte':'border-gray-400', 'Saúde':'border-green-400', 'Lazer':'border-purple-400', 'Vestimenta':'border-pink-400', 'Gastos Pessoais':'border-indigo-400'};
-            return colors[cat] || 'border-indigo-400';
+        function renderAll() {
+            const now = new Date();
+            const curM = now.toISOString().substring(0, 7);
+            let mTotal = 0;
+            let limitUsed = 0;
+            let limitTotal = 0;
+
+            const list = document.getElementById('transactionsList');
+            if(list) {
+                list.innerHTML = '';
+                // Filtrar transações do mês atual do sistema para o Dashboard
+                transactions.filter(t => t.date.startsWith(curM)).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(tx => {
+                    mTotal += tx.amount;
+                    list.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border-l-4 ${getBorderColor(tx.category)}">
+                            <div class="truncate pr-4">
+                                <p class="font-bold text-gray-800 text-sm truncate">${tx.desc}</p>
+                                <p class="text-[9px] text-gray-400 font-bold uppercase">${tx.date.split('-').reverse().join('/')} • ${tx.sub}</p>
+                            </div>
+                            <div class="text-right min-w-[80px]">
+                                <p class="font-black text-gray-900 text-sm">R$ ${tx.amount.toFixed(2)}</p>
+                                <button onclick="deleteTx(${tx.id})" class="text-[9px] text-red-400 font-bold uppercase">Apagar</button>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            const cList = document.getElementById('cardsList');
+            if(cList) {
+                cList.innerHTML = '';
+                cards.forEach(c => {
+                    const used = transactions.filter(t => t.cardId == c.id && t.date.startsWith(curM)).reduce((acc, t) => acc + t.amount, 0);
+                    limitUsed += used; limitTotal += c.limit;
+                    const perc = Math.min((used / c.limit) * 100, 100);
+                    cList.innerHTML += `
+                        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden relative">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">${c.flag}</p>
+                                    <p class="text-lg font-black text-gray-800">${c.bank}</p>
+                                </div>
+                                <button onclick="deleteCard(${c.id})" class="p-2 bg-red-50 text-red-400 rounded-xl">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/></svg>
+                                </button>
+                            </div>
+                            <div class="mb-2 flex justify-between items-end">
+                                <div><p class="text-[9px] font-bold text-gray-400 uppercase">Gasto atual</p><p class="text-xl font-black text-gray-900">R$ ${used.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
+                                <div class="text-right"><p class="text-[9px] font-bold text-gray-400 uppercase">Limite</p><p class="text-sm font-bold text-gray-600">R$ ${c.limit.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p></div>
+                            </div>
+                            <div class="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                                <div class="h-full transition-all duration-500 ${perc > 90 ? 'bg-red-500' : 'bg-indigo-600'}" style="width: ${perc}%"></div>
+                            </div>
+                            <div class="mt-2 text-[10px] font-black text-right ${perc > 90 ? 'text-red-500' : 'text-indigo-400'}">${perc.toFixed(1)}% USADO</div>
+                        </div>`;
+                });
+            }
+
+            document.getElementById('totalExpenses').innerText = `R$ ${mTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            document.getElementById('avgLimitUsage').innerText = limitTotal > 0 ? `${((limitUsed/limitTotal)*100).toFixed(0)}%` : '0%';
+            document.getElementById('currentMonthDisplay').innerText = `Mês de ${new Intl.DateTimeFormat('pt-BR', {month:'long'}).format(now)}`;
         }
 
-        // Gráfico
+        function getBorderColor(cat) {
+            const colors = { 'Habitação': 'border-blue-500', 'Alimentação': 'border-orange-500', 'Transporte': 'border-slate-400', 'Saúde': 'border-emerald-500', 'Lazer': 'border-purple-500', 'Vestimenta': 'border-pink-500', 'Gastos Pessoais': 'border-indigo-500' };
+            return colors[cat] || 'border-gray-300';
+        }
+
         function initChart() {
             const ctx = document.getElementById('categoryChart').getContext('2d');
-            const data = getChartData();
-            chart = new Chart(ctx, {
+            const d = getChartData();
+            chartInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: {
-                    labels: Object.keys(data),
-                    datasets: [{ data: Object.values(data), backgroundColor: ['#60a5fa','#fb923c','#94a3b8','#4ade80','#a78bfa','#f472b6','#818cf8','#fbbf24'], borderWidth:0 }]
-                },
-                options: { maintainAspectRatio:false, plugins: { legend:{position:'bottom', labels:{boxWidth:10, font:{size:10, weight:'bold'}}}} }
+                data: { labels: Object.keys(d), datasets: [{ data: Object.values(d), backgroundColor: ['#60a5fa','#fb923c','#94a3b8','#34d399','#a78bfa','#f472b6','#818cf8','#fbbf24'], borderWidth: 0 }] },
+                options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 10, weight: '600' } } } } }
             });
         }
 
         function getChartData() {
-            const now = new Date();
+            const curM = new Date().toISOString().substring(0, 7);
             const totals = {};
-            transactions.filter(t => new Date(t.date).getMonth() === now.getMonth() && new Date(t.date).getFullYear() === now.getFullYear()).forEach(t => {
-                totals[t.category] = (totals[t.category] || 0) + t.amount;
-            });
+            transactions.filter(t => t.date.startsWith(curM)).forEach(t => totals[t.category] = (totals[t.category] || 0) + t.amount);
             return totals;
         }
 
-        function updateChart() { if(chart) { const d = getChartData(); chart.data.labels = Object.keys(d); chart.data.datasets[0].data = Object.values(d); chart.update(); } }
-
-        // Sincronismo e Ajustes
-        function saveSettings() {
-            const url = document.getElementById('googleScriptUrl').value;
-            config.scriptUrl = url;
-            localStorage.setItem('family_fin_config', JSON.stringify(config));
-            alert("Configurações salvas!");
-        }
-
-        function clearAllData() {
-            if(confirm("Deseja apagar TUDO do seu celular?")) {
-                localStorage.clear();
-                location.reload();
-            }
-        }
+        function updateChart() { if(chartInstance) { const d = getChartData(); chartInstance.data.labels = Object.keys(d); chartInstance.data.datasets[0].data = Object.values(d); chartInstance.update(); } }
+        function saveSettings() { config.scriptUrl = document.getElementById('googleScriptUrl').value; localStorage.setItem('family_fin_config', JSON.stringify(config)); alert("Configurações salvas!"); }
+        function clearAllData() { if(confirm("Limpar todos os dados?")) { localStorage.clear(); location.reload(); } }
 
         async function syncWithGoogle() {
-            if (!config.scriptUrl) { alert("Configure a URL do Script primeiro!"); switchTab('settings'); return; }
-
+            if (!config.scriptUrl) return alert("Configure a URL do Google Script primeiro!");
             const syncIcon = document.getElementById('syncStatus');
             syncIcon.classList.add('sync-active');
-
             try {
                 const payload = transactions.map(t => {
                     const card = cards.find(c => c.id == t.cardId);
-                    return {
-                        data: t.date,
-                        descricao: t.desc,
-                        valor: t.amount,
-                        usuario: t.user,
-                        categoria: t.category,
-                        subcategoria: t.sub,
-                        metodo: t.method,
-                        cartao: card ? card.bank : '-'
-                    };
+                    return { data: t.date, descricao: t.desc, valor: t.amount, usuario: t.user, categoria: t.category, subcategoria: t.sub, metodo: t.method, cartao: card ? `${card.bank} (${card.flag})` : '-' };
                 });
-
-                // Tenta enviar via Fetch
-                await fetch(config.scriptUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                alert("Sincronização iniciada! Verifique sua planilha em alguns segundos.");
-            } catch (error) {
-                console.error(error);
-                alert("Erro ao enviar dados. Verifique sua conexão e a URL do script.");
-            } finally {
-                syncIcon.classList.remove('sync-active');
-            }
+                await fetch(config.scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                alert("Sincronizado!");
+            } catch (e) { alert("Erro ao sincronizar."); } finally { syncIcon.classList.remove('sync-active'); }
         }
     </script>
 </body>
