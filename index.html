@@ -71,7 +71,7 @@
             </div>
         </section>
 
-        <!-- Aba Lançar (ATUALIZADA) -->
+        <!-- Aba Lançar -->
         <section id="add" class="tab-content">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
                 <h2 class="text-xl font-black text-gray-800">Novo Lançamento</h2>
@@ -297,10 +297,8 @@
         let chartInstance = null;
 
         window.onload = () => {
-            // Define data de hoje por padrão no input
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('date').value = today;
-            
             document.getElementById('googleScriptUrl').value = config.scriptUrl;
             updateSubcategories();
             populateMonthFilter();
@@ -366,7 +364,7 @@
 
             filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
             list.innerHTML = filtered.map(t => {
-                const card = cards.find(c => c.id == t.cardId);
+                const card = t.cardId ? cards.find(c => c.id == t.cardId) : null;
                 return `
                     <div class="border-b border-gray-50 pb-4">
                         <div class="flex justify-between items-start">
@@ -415,7 +413,7 @@
             document.getElementById('installmentsWrapper').classList.toggle('hidden', method !== 'Crédito');
             
             const cardSelect = document.getElementById('selectedCard');
-            cardSelect.innerHTML = cards.map(c => `<option value="${c.id}">${c.bank} (${c.flag})</option>`).join('') || '<option disabled>Cadastre um cartão primeiro</option>';
+            cardSelect.innerHTML = cards.map(c => `<option value="${c.id}">${c.bank} (${c.flag})</option>`).join('') || '<option value="">Sem cartão disponível</option>';
         }
 
         function updateSubcategories() {
@@ -424,7 +422,7 @@
             document.getElementById('subcategory').innerHTML = subs.map(s => `<option value="${s}">${s}</option>`).join('');
         }
 
-        // SALVAR TRANSAÇÃO (COM DATA CUSTOMIZADA)
+        // SALVAR TRANSAÇÃO (CORREÇÃO DE CARTÃO VAZIO PARA DINHEIRO/PIX)
         function saveTransaction() {
             const desc = document.getElementById('desc').value;
             const amount = parseFloat(document.getElementById('amount').value);
@@ -432,18 +430,20 @@
             const category = document.getElementById('category').value;
             const sub = document.getElementById('subcategory').value;
             const method = document.getElementById('method').value;
-            const cardId = document.getElementById('selectedCard').value;
-            const inst = parseInt(document.getElementById('installments').value) || 1;
+            const isCardMethod = (method === 'Crédito' || method === 'Débito');
+            
+            // Se não for cartão, força o ID para null para não impactar o limite de nenhum cartão
+            const cardId = isCardMethod ? document.getElementById('selectedCard').value : null;
+            
+            const inst = (method === 'Crédito') ? (parseInt(document.getElementById('installments').value) || 1) : 1;
             const selectedDateString = document.getElementById('date').value;
 
             if (!desc || isNaN(amount) || !selectedDateString) return alert("Preencha descrição, valor e data!");
-            if ((method === 'Crédito' || method === 'Débito') && !cardId) return alert("Selecione um cartão!");
+            if (isCardMethod && !cardId) return alert("Selecione um cartão para este método!");
 
-            // Criar objeto de data a partir do input (YYYY-MM-DD)
             const [year, month, day] = selectedDateString.split('-').map(Number);
             
             for (let i = 0; i < inst; i++) {
-                // Para parcelas, adicionamos meses à data original
                 const d = new Date(year, (month - 1) + i, day);
                 
                 transactions.push({
@@ -459,10 +459,8 @@
             populateMonthFilter();
             alert("Lançamento salvo!");
             
-            // Reset campos
             document.getElementById('desc').value = '';
             document.getElementById('amount').value = '';
-            // Mantém a data de hoje para o próximo
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
             
             switchTab('dashboard');
@@ -486,7 +484,6 @@
             const list = document.getElementById('transactionsList');
             if(list) {
                 list.innerHTML = '';
-                // Filtrar transações do mês atual do sistema para o Dashboard
                 transactions.filter(t => t.date.startsWith(curM)).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(tx => {
                     mTotal += tx.amount;
                     list.innerHTML += `
@@ -507,6 +504,7 @@
             if(cList) {
                 cList.innerHTML = '';
                 cards.forEach(c => {
+                    // Soma apenas transações que possuam o ID deste cartão específico
                     const used = transactions.filter(t => t.cardId == c.id && t.date.startsWith(curM)).reduce((acc, t) => acc + t.amount, 0);
                     limitUsed += used; limitTotal += c.limit;
                     const perc = Math.min((used / c.limit) * 100, 100);
@@ -570,7 +568,7 @@
             syncIcon.classList.add('sync-active');
             try {
                 const payload = transactions.map(t => {
-                    const card = cards.find(c => c.id == t.cardId);
+                    const card = t.cardId ? cards.find(c => c.id == t.cardId) : null;
                     return { data: t.date, descricao: t.desc, valor: t.amount, usuario: t.user, categoria: t.category, subcategoria: t.sub, metodo: t.method, cartao: card ? `${card.bank} (${card.flag})` : '-' };
                 });
                 await fetch(config.scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
